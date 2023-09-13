@@ -138,7 +138,26 @@ func (m nrMiddleware) deserializeMiddleware(stack *smithymiddle.Stack) error {
 //
 //  txn := loadNewRelicTransaction()
 //  nraws.AppendMiddlewares(&awsConfig.APIOptions, txn)
+
+var nrInitializeMiddleware = smithymiddle.InitializeMiddlewareFunc("NRInitializeMiddleware", func(
+	ctx context.Context, in smithymiddle.InitializeInput, next smithymiddle.InitializeHandler,
+) (
+	out smithymiddle.InitializeOutput, metadata smithymiddle.Metadata, err error,
+) {
+
+	parameter := handleRequest(in.Parameters)
+	newrelic.GetSecurityAgentInterface().SendEvent("DYNAMO_DB", parameter)
+	return next.HandleInitialize(ctx, in)
+})
+
+func registerDefaultBucketMiddleware(stack *smithymiddle.Stack) error {
+	// Attach the custom middleware to the beginning of the Initialize step
+	return stack.Initialize.Add(nrInitializeMiddleware, smithymiddle.Before)
+
+}
+
 func AppendMiddlewares(apiOptions *[]func(*smithymiddle.Stack) error, txn *newrelic.Transaction) {
 	m := nrMiddleware{txn: txn}
 	*apiOptions = append(*apiOptions, m.deserializeMiddleware)
+	*apiOptions = append(*apiOptions, registerDefaultBucketMiddleware)
 }
