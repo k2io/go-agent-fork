@@ -1,7 +1,7 @@
 package nrawssdk
 
 import (
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
 const (
@@ -46,45 +46,47 @@ func handleRequest(in interface{}) (parameter []parameters) {
 	switch input := in.(type) {
 	case *dynamodb.PutItemInput:
 		var query Query
-		query.Item = input.Item
+		query.Item = removeNulls(input.Item)
 		query.TableName = input.TableName
 		query.ConditionExpression = input.ConditionExpression
 		query.ConditionalOperator = input.ConditionalOperator
 		query.Expected = input.Expected
-		query.ConditionalOperator = input.ConditionalOperator
 		query.ExpressionAttributeNames = input.ExpressionAttributeNames
 		query.ExpressionAttributeValues = input.ExpressionAttributeValues
 		parameter = append(parameter, parameters{query, OP_WRITE})
 		return
 	case *dynamodb.GetItemInput:
-		if input.ProjectionExpression == nil {
+		var query Query
+		if query.ProjectionExpression == nil {
 			return
 		}
-		var query Query
-		query.Key = input.Key
+		query.Key = removeNulls(input.Key)
 		query.TableName = input.TableName
 		query.AttributesToGet = input.AttributesToGet
 		query.ExpressionAttributeNames = input.ExpressionAttributeNames
+		query.ProjectionExpression = input.ProjectionExpression
 		parameter = append(parameter, parameters{query, OP_READ})
 		return
 	case *dynamodb.UpdateItemInput:
 		var query Query
-		query.Key = input.Key
+		query.Key = removeNulls(input.Key)
 		query.TableName = input.TableName
 		query.AttributeUpdates = input.AttributeUpdates
 		query.ConditionExpression = input.ConditionExpression
-		query.ConditionalOperator = input.ConditionalOperator
 		query.Expected = input.Expected
+		query.ConditionalOperator = input.ConditionalOperator
 		query.ExpressionAttributeNames = input.ExpressionAttributeNames
 		query.ExpressionAttributeValues = input.ExpressionAttributeValues
+		query.UpdateExpression = input.UpdateExpression
 		parameter = append(parameter, parameters{query, OP_UPDATE})
 		return
 	case *dynamodb.DeleteItemInput:
+
 		if input.ConditionExpression == nil {
 			return
 		}
 		var query Query
-		query.Key = input.Key
+		query.Key = removeNulls(input.Key)
 		query.TableName = input.TableName
 		query.ConditionExpression = input.ConditionExpression
 		query.ConditionalOperator = input.ConditionalOperator
@@ -97,7 +99,13 @@ func handleRequest(in interface{}) (parameter []parameters) {
 		requestItems := input.RequestItems
 		for k, v := range requestItems {
 			var query Query
-			query.Key = v.Keys
+			var key []map[string]interface{}
+			if v.Keys != nil {
+				for i := range v.Keys {
+					key = append(key, removeNulls(v.Keys[i]))
+				}
+			}
+			query.Key = key
 			query.TableName = k
 			query.AttributesToGet = v.AttributesToGet
 			query.ExpressionAttributeNames = v.ExpressionAttributeNames
@@ -110,7 +118,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 			for i := range v {
 				if v[i].PutRequest != nil {
 					var query Query
-					query.Item = v[i].PutRequest.Item
+					query.Item = removeNulls(v[i].PutRequest.Item)
 					query.TableName = k
 					parameter = append(parameter, parameters{query, OP_WRITE})
 				}
@@ -123,18 +131,10 @@ func handleRequest(in interface{}) (parameter []parameters) {
 			}
 		}
 		return
-	case *dynamodb.BatchExecuteStatementInput:
-		requestItems := input.Statements
-		for i := range requestItems {
-			var query Query
-			query.Statement = *requestItems[i].Statement
-			query.Parameters = requestItems[i].Parameters
-			parameter = append(parameter, parameters{query, OP_READ_WRITE})
-		}
-		return
 	case *dynamodb.QueryInput:
+
 		if input.FilterExpression == nil && input.KeyConditionExpression == nil && input.ProjectionExpression == nil {
-			return nil
+			return
 		}
 		var query Query
 		query.TableName = input.TableName
@@ -149,7 +149,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 		return
 	case *dynamodb.ScanInput:
 		if input.FilterExpression == nil && input.ProjectionExpression == nil {
-			return nil
+			return
 		}
 		var query Query
 		query.TableName = input.TableName
@@ -157,7 +157,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 		query.ProjectionExpression = input.ProjectionExpression
 		query.ExpressionAttributeNames = input.ExpressionAttributeNames
 		query.ExpressionAttributeValues = input.ExpressionAttributeValues
-		//query.ScanFilter = input.ScanFilter
+		query.ScanFilter = input.ScanFilter
 		query.AttributesToGet = input.AttributesToGet
 		parameter = append(parameter, parameters{query, OP_READ})
 		return
@@ -168,7 +168,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 			var query Query
 			get := requestItems[i]
 			query.TableName = get.Get.TableName
-			query.Key = get.Get.Key
+			query.Key = removeNulls(get.Get.Key)
 			query.ProjectionExpression = get.Get.ProjectionExpression
 			query.ExpressionAttributeNames = get.Get.ExpressionAttributeNames
 			parameter = append(parameter, parameters{query, OP_READ})
@@ -182,7 +182,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 				conditionCheck := requestItems[i].ConditionCheck
 				var query Query
 				query.TableName = conditionCheck.TableName
-				query.Key = conditionCheck.Key
+				query.Key = removeNulls(conditionCheck.Key)
 				query.ConditionExpression = conditionCheck.ConditionExpression
 				query.ExpressionAttributeNames = conditionCheck.ExpressionAttributeNames
 				query.ExpressionAttributeValues = conditionCheck.ExpressionAttributeValues
@@ -192,7 +192,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 				put := requestItems[i].Put
 				var query Query
 				query.TableName = put.TableName
-				query.Item = put.Item
+				query.Item = removeNulls(put.Item)
 				query.ConditionExpression = put.ConditionExpression
 				query.ExpressionAttributeNames = put.ExpressionAttributeNames
 				query.ExpressionAttributeValues = put.ExpressionAttributeValues
@@ -202,7 +202,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 				update := requestItems[i].Update
 				var query Query
 				query.TableName = update.TableName
-				query.Key = update.Key
+				query.Key = removeNulls(update.Key)
 				query.ConditionExpression = update.ConditionExpression
 				query.UpdateExpression = update.UpdateExpression
 				query.ExpressionAttributeNames = update.ExpressionAttributeNames
@@ -213,7 +213,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 				delete := requestItems[i].Delete
 				var query Query
 				query.TableName = delete.TableName
-				query.Key = delete.Key
+				query.Key = removeNulls(delete.Key)
 				query.ConditionExpression = delete.ConditionExpression
 				query.ExpressionAttributeNames = delete.ExpressionAttributeNames
 				query.ExpressionAttributeValues = delete.ExpressionAttributeValues
@@ -222,23 +222,47 @@ func handleRequest(in interface{}) (parameter []parameters) {
 
 		}
 		return
-	case *dynamodb.ExecuteStatementInput:
-		var query Query
-		query.Statement = input.Statement
-		query.Parameters = input.Parameters
-		parameter = append(parameter, parameters{query, OP_READ_WRITE})
-		return
-	case *dynamodb.ExecuteTransactionInput:
-
-		requestItems := input.TransactStatements
-		for i := range requestItems {
-			var query Query
-			query.Statement = requestItems[i].Statement
-			query.Parameters = requestItems[i].Parameters
-			parameter = append(parameter, parameters{query, OP_READ_WRITE})
-		}
-		return
 	default:
 	}
 	return
+}
+
+func removeNulls(mapa map[string]*dynamodb.AttributeValue) map[string]interface{} {
+	var res = make(map[string]interface{})
+	for k, v := range mapa {
+		res[k] = getValue(v)
+	}
+	return res
+}
+
+func getValue(v *dynamodb.AttributeValue) interface{} {
+
+	type value struct {
+		Value interface{} `json:"value,omitempty"`
+	}
+	if v.B != nil {
+		return value{v.B}
+	} else if v.BOOL != nil {
+		return value{v.BOOL}
+	} else if v.BS != nil {
+		return value{v.BS}
+	} else if v.L != nil {
+		res := []interface{}{}
+		for i := range v.L {
+			res = append(res, getValue(v.L[i]))
+		}
+		return res
+	} else if v.M != nil {
+		return value{removeNulls(v.M)}
+	} else if v.N != nil {
+		return value{v.N}
+	} else if v.NS != nil {
+		return value{v.NS}
+	} else if v.S != nil {
+		return value{v.S}
+	} else if v.SS != nil {
+		return value{v.SS}
+	} else {
+		return nil
+	}
 }
