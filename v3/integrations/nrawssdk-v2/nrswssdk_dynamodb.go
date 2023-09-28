@@ -2,6 +2,7 @@ package nrawssdk
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 const (
@@ -14,24 +15,24 @@ const (
 )
 
 type Query struct {
-	Key                       interface{} `json:"key,omitempty"`
-	Item                      interface{} `json:"item,omitempty"`
-	TableName                 interface{} `json:"tableName,omitempty"`
-	ConditionExpression       interface{} `json:"conditionExpression,omitempty"`
-	ConditionalOperator       interface{} `json:"conditionalOperator,omitempty"`
-	Expected                  interface{} `json:"expected,omitempty"`
-	ExpressionAttributeNames  interface{} `json:"expressionAttributeNames,omitempty"`
-	ExpressionAttributeValues interface{} `json:"expressionAttributeValues,omitempty"`
-	AttributesToGet           interface{} `json:"attributesToGet,omitempty"`
-	AttributeUpdates          interface{} `json:"attributeUpdates,omitempty"`
-	Statement                 interface{} `json:"statement,omitempty"`
-	Parameters                interface{} `json:"parameters,omitempty"`
-	KeyConditionExpression    interface{} `json:"keyConditionExpression,omitempty"`
-	FilterExpression          interface{} `json:"filterExpression,omitempty"`
-	ProjectionExpression      interface{} `json:"projectionExpression,omitempty"`
-	QueryFilter               interface{} `json:"queryFilter,omitempty"`
-	ScanFilter                interface{} `json:"scanFilter,omitempty"`
-	UpdateExpression          interface{} `json:"updateExpression,omitempty"`
+	Key                       interface{}                             `json:"key,omitempty"`
+	Item                      interface{}                             `json:"item,omitempty"`
+	TableName                 interface{}                             `json:"tableName,omitempty"`
+	ConditionExpression       *string                                 `json:"conditionExpression,omitempty"`
+	ConditionalOperator       types.ConditionalOperator               `json:"conditionalOperator,omitempty"`
+	Expected                  map[string]types.ExpectedAttributeValue `json:"expected,omitempty"`
+	ExpressionAttributeNames  map[string]string                       `json:"expressionAttributeNames,omitempty"`
+	ExpressionAttributeValues map[string]types.AttributeValue         `json:"expressionAttributeValues,omitempty"`
+	AttributesToGet           []string                                `json:"attributesToGet,omitempty"`
+	AttributeUpdates          map[string]types.AttributeValueUpdate   `json:"attributeUpdates,omitempty"`
+	Statement                 *string                                 `json:"statement,omitempty"`
+	Parameters                []types.AttributeValue                  `json:"parameters,omitempty"`
+	KeyConditionExpression    *string                                 `json:"keyConditionExpression,omitempty"`
+	FilterExpression          *string                                 `json:"filterExpression,omitempty"`
+	ProjectionExpression      *string                                 `json:"projectionExpression,omitempty"`
+	QueryFilter               map[string]types.Condition              `json:"queryFilter,omitempty"`
+	ScanFilter                interface{}                             `json:"scanFilter,omitempty"`
+	UpdateExpression          *string                                 `json:"updateExpression,omitempty"`
 }
 
 type parameters struct {
@@ -127,7 +128,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 		requestItems := input.Statements
 		for i := range requestItems {
 			var query Query
-			query.Statement = *requestItems[i].Statement
+			query.Statement = requestItems[i].Statement
 			query.Parameters = requestItems[i].Parameters
 			parameter = append(parameter, parameters{query, OP_READ_WRITE})
 		}
