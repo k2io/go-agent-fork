@@ -26,8 +26,8 @@ type hook struct {
 }
 
 type parameters struct {
-	Payload     interface{} `json:"payload"`
 	PayloadType interface{} `json:"payloadType"`
+	Payload     interface{} `json:"payload"`
 }
 
 var _ redis.Hook = (*hook)(nil)
