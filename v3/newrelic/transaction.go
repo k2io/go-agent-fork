@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -248,12 +247,7 @@ func serverName(r *http.Request) string {
 
 func reqBody(req *http.Request) io.Writer {
 	if IsSecurityAgentPresent() {
-		contentLength := req.Header.Get("Content-Length")
-		i, err := strconv.ParseInt(contentLength, 10, 64)
-		if err != nil {
-			i = 100
-		}
-		buf := &BodyBuffer{buf: make([]byte, 0, i)}
+		buf := &BodyBuffer{buf: make([]byte, 0, 100)}
 		tee := io.TeeReader(req.Body, buf)
 		req.Body = io.NopCloser(tee)
 		return buf
