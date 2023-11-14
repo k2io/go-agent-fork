@@ -2,8 +2,6 @@ package nrawssdk
 
 import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-
-	"github.com/aws/aws-sdk-go/service/dynamodb/types"
 )
 
 const (
@@ -16,22 +14,22 @@ const (
 )
 
 type Query struct {
-	Key                       interface{}                              `json:"key,omitempty"`
-	Item                      interface{}                              `json:"item,omitempty"`
-	TableName                 interface{}                              `json:"tableName,omitempty"`
-	ConditionExpression       *string                                  `json:"conditionExpression,omitempty"`
-	ConditionalOperator       *string                                  `json:"conditionalOperator,omitempty"`
-	Expected                  map[string]*types.ExpectedAttributeValue `json:"expected,omitempty"`
-	ExpressionAttributeNames  map[string]*string                       `json:"expressionAttributeNames,omitempty"`
-	ExpressionAttributeValues map[string]*types.AttributeValue         `json:"expressionAttributeValues,omitempty"`
-	AttributesToGet           []*string                                `json:"attributesToGet,omitempty"`
-	AttributeUpdates          map[string]*types.AttributeValueUpdate   `json:"attributeUpdates,omitempty"`
-	KeyConditionExpression    *string                                  `json:"keyConditionExpression,omitempty"`
-	FilterExpression          *string                                  `json:"filterExpression,omitempty"`
-	ProjectionExpression      *string                                  `json:"projectionExpression,omitempty"`
-	QueryFilter               map[string]*types.Condition              `json:"queryFilter,omitempty"`
-	ScanFilter                map[string]*types.Condition              `json:"scanFilter,omitempty"`
-	UpdateExpression          *string                                  `json:"updateExpression,omitempty"`
+	Key                       interface{}                                 `json:"key,omitempty"`
+	Item                      interface{}                                 `json:"item,omitempty"`
+	TableName                 interface{}                                 `json:"tableName,omitempty"`
+	ConditionExpression       *string                                     `json:"conditionExpression,omitempty"`
+	ConditionalOperator       *string                                     `json:"conditionalOperator,omitempty"`
+	Expected                  map[string]*dynamodb.ExpectedAttributeValue `json:"expected,omitempty"`
+	ExpressionAttributeNames  map[string]*string                          `json:"expressionAttributeNames,omitempty"`
+	ExpressionAttributeValues map[string]*dynamodb.AttributeValue         `json:"expressionAttributeValues,omitempty"`
+	AttributesToGet           []*string                                   `json:"attributesToGet,omitempty"`
+	AttributeUpdates          map[string]*dynamodb.AttributeValueUpdate   `json:"attributeUpdates,omitempty"`
+	KeyConditionExpression    *string                                     `json:"keyConditionExpression,omitempty"`
+	FilterExpression          *string                                     `json:"filterExpression,omitempty"`
+	ProjectionExpression      *string                                     `json:"projectionExpression,omitempty"`
+	QueryFilter               map[string]*dynamodb.Condition              `json:"queryFilter,omitempty"`
+	ScanFilter                map[string]*dynamodb.Condition              `json:"scanFilter,omitempty"`
+	UpdateExpression          *string                                     `json:"updateExpression,omitempty"`
 }
 
 type parameters struct {
@@ -57,7 +55,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 		return
 	case *dynamodb.GetItemInput:
 		var query Query
-		if query.ProjectionExpression == nil {
+		if input.ProjectionExpression == nil {
 			return
 		}
 		query.Key = removeNulls(input.Key)
@@ -108,6 +106,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 			query.Key = key
 			query.TableName = k
 			query.AttributesToGet = v.AttributesToGet
+			query.ProjectionExpression = v.ProjectionExpression
 			query.ExpressionAttributeNames = v.ExpressionAttributeNames
 			parameter = append(parameter, parameters{query, OP_READ})
 		}

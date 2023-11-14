@@ -23,7 +23,11 @@ func startSegment(req *request.Request) {
 	}
 	req.HTTPRequest = awssupport.StartSegment(input)
 	if newrelic.IsSecurityAgentPresent() {
-		newrelic.GetSecurityAgentInterface().SendEvent("DYNAMO_DB", handleRequest(req.Params))
+
+		parameter := handleRequest(req.Params)
+		if parameter != nil && len(parameter) > 0 {
+			newrelic.GetSecurityAgentInterface().SendEvent("DYNAMO_DB", parameter)
+		}
 	}
 }
 
