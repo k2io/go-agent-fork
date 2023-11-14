@@ -8,12 +8,21 @@
 package nrelasticsearch
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
 	"github.com/newrelic/go-agent/v3/internal"
 	newrelic "github.com/newrelic/go-agent/v3/newrelic"
 )
+
+type parameters struct {
+	Payload     interface{} `json:"payload"`
+	PayloadType string      `json:"payloadType"`
+	Collection  string      `json:"Collection"`
+}
 
 func init() { internal.TrackUsage("integration", "datastore", "elasticsearch") }
 
@@ -24,6 +33,8 @@ func parseRequest(r *http.Request) (segment newrelic.DatastoreSegment) {
 
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	method := r.Method
+
+	defer sendSecureEventElasticSearch(r, &segment)
 
 	if "" == path {
 		switch method {
@@ -156,13 +167,33 @@ func parseRequest(r *http.Request) (segment newrelic.DatastoreSegment) {
 	return
 }
 
+func sendSecureEventElasticSearch(r *http.Request, segment *newrelic.DatastoreSegment) {
+
+	if newrelic.IsSecurityAgentPresent() && r.Body != nil {
+		payload, _ := io.ReadAll(r.Body)
+		r.Body = io.NopCloser(bytes.NewBuffer(payload))
+
+		p := parameters{string(payload), segment.Operation, segment.Collection}
+
+		var jsonpayload map[string]interface{}
+		err := json.Unmarshal([]byte(payload), &jsonpayload)
+		if err == nil {
+			p.Payload = jsonpayload
+		}
+		segment.SetSecureAgentEvent(newrelic.GetSecurityAgentInterface().SendEvent("ELASTIC_SEARCH", p))
+	}
+}
+
 type roundtripper struct{ original http.RoundTripper }
 
 func (t roundtripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	segment := parseRequest(r)
 	defer segment.End()
-
-	return t.original.RoundTrip(r)
+	response, err := t.original.RoundTrip(r)
+	if newrelic.IsSecurityAgentPresent() {
+		newrelic.GetSecurityAgentInterface().SendExitEvent(segment.GetSecureAgentEvent(), err)
+	}
+	return response, err
 }
 
 // NewRoundTripper creates a new http.RoundTripper to instrument elasticsearch
