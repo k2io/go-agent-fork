@@ -83,17 +83,18 @@ func (h hook) after(ctx context.Context) {
 	}
 }
 
-func pipelineOperation(cmds []redis.Cmder) string {
+func pipelineOperation(cmds []redis.Cmder) (string, any) {
 	operations := make([]string, 0, len(cmds))
 	parameter := make([]parameters, 0, len(cmds))
+	var secureAgentevent any
 	for _, cmd := range cmds {
 		operations = append(operations, cmd.Name())
 		parameter = append(parameter, parameters{cmd.FullName(), cmd.Args()})
 	}
 	if newrelic.IsSecurityAgentPresent() {
-		newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
+		secureAgentevent = newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
 	}
-	return "pipeline:" + strings.Join(operations, ",")
+	return "pipeline:" + strings.Join(operations, ","), secureAgentevent
 }
 
 func (h hook) DialHook(next redis.DialHook) redis.DialHook {
@@ -103,11 +104,15 @@ func (h hook) DialHook(next redis.DialHook) redis.DialHook {
 func (h hook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		ctx = h.before(ctx, cmd.Name())
+		var err error
 		if cmd != nil && newrelic.IsSecurityAgentPresent() {
 			parameter := parameters{cmd.FullName(), cmd.Args()}
-			newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
+			secureAgentevent := newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
+			defer func() {
+				newrelic.GetSecurityAgentInterface().SendExitEvent(secureAgentevent, err)
+			}()
 		}
-		err := next(ctx, cmd)
+		err = next(ctx, cmd)
 		h.after(ctx)
 		return err
 	}
@@ -115,9 +120,13 @@ func (h hook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 
 func (h hook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return func(ctx context.Context, cmds []redis.Cmder) error {
-		ctx = h.before(ctx, pipelineOperation(cmds))
+		operation, secureAgentevent := pipelineOperation(cmds)
+		ctx = h.before(ctx, operation)
 		err := next(ctx, cmds)
 		h.after(ctx)
+		if newrelic.IsSecurityAgentPresent() {
+			newrelic.GetSecurityAgentInterface().SendExitEvent(secureAgentevent, err)
+		}
 		return err
 	}
 }
