@@ -107,6 +107,22 @@ func (m nrMiddleware) deserializeMiddleware(stack *smithymiddle.Stack) error {
 		smithymiddle.Before)
 }
 
+func (m nrMiddleware) initializeMiddleware(stack *smithymiddle.Stack) error {
+	return stack.Initialize.Add(smithymiddle.InitializeMiddlewareFunc("NRInitializeMiddleware", func(
+		ctx context.Context, in smithymiddle.InitializeInput, next smithymiddle.InitializeHandler,
+	) (
+		out smithymiddle.InitializeOutput, metadata smithymiddle.Metadata, err error,
+	) {
+
+		parameter := handleRequest(in.Parameters)
+		if parameter != nil && len(parameter) > 0 {
+			newrelic.GetSecurityAgentInterface().SendEvent("DYNAMO_DB", parameter)
+		}
+		return next.HandleInitialize(ctx, in)
+	}), smithymiddle.Before)
+
+}
+
 // AppendMiddlewares inserts New Relic middleware in the given `apiOptions` for
 // the AWS SDK V2 for Go. It must be called only once per AWS configuration.
 //
@@ -120,25 +136,29 @@ func (m nrMiddleware) deserializeMiddleware(stack *smithymiddle.Stack) error {
 // To see segments and spans for all AWS invocations, call AppendMiddlewares
 // with the AWS Config `apiOptions` and provide nil for `txn`. For example:
 //
-//  awsConfig, err := config.LoadDefaultConfig(ctx)
-//  if err != nil {
-//      log.Fatal(err)
-//  }
-//  nraws.AppendMiddlewares(&awsConfig.APIOptions, nil)
+//	awsConfig, err := config.LoadDefaultConfig(ctx)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	nraws.AppendMiddlewares(&awsConfig.APIOptions, nil)
 //
 // If do not want the transaction to be retrived from the context, you can
 // explicitly set `txn`. For example:
 //
-//  awsConfig, err := config.LoadDefaultConfig(ctx)
-//  if err != nil {
-//      log.Fatal(err)
-//  }
+//	awsConfig, err := config.LoadDefaultConfig(ctx)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 //
-//  ...
+//	...
 //
-//  txn := loadNewRelicTransaction()
-//  nraws.AppendMiddlewares(&awsConfig.APIOptions, txn)
+//	txn := loadNewRelicTransaction()
+//	nraws.AppendMiddlewares(&awsConfig.APIOptions, txn)
+
 func AppendMiddlewares(apiOptions *[]func(*smithymiddle.Stack) error, txn *newrelic.Transaction) {
 	m := nrMiddleware{txn: txn}
 	*apiOptions = append(*apiOptions, m.deserializeMiddleware)
+	if newrelic.IsSecurityAgentPresent() {
+		*apiOptions = append(*apiOptions, m.initializeMiddleware)
+	}
 }

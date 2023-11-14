@@ -8,6 +8,8 @@ go 1.19
 require (
 	// v1.15.0 is the first aws-sdk-go version with module support.
 	github.com/aws/aws-sdk-go v1.34.0
+	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.10.39
+	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.21.5
 	github.com/newrelic/go-agent/v3 v3.26.0
 )
 

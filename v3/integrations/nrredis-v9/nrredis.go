@@ -25,6 +25,11 @@ type hook struct {
 	segment newrelic.DatastoreSegment
 }
 
+type parameters struct {
+	PayloadType interface{} `json:"payloadType"`
+	Payload     interface{} `json:"payload"`
+}
+
 var _ redis.Hook = (*hook)(nil)
 
 var (
@@ -80,8 +85,13 @@ func (h hook) after(ctx context.Context) {
 
 func pipelineOperation(cmds []redis.Cmder) string {
 	operations := make([]string, 0, len(cmds))
+	parameter := make([]parameters, 0, len(cmds))
 	for _, cmd := range cmds {
 		operations = append(operations, cmd.Name())
+		parameter = append(parameter, parameters{cmd.FullName(), cmd.Args()})
+	}
+	if newrelic.IsSecurityAgentPresent() {
+		newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
 	}
 	return "pipeline:" + strings.Join(operations, ",")
 }
@@ -93,6 +103,10 @@ func (h hook) DialHook(next redis.DialHook) redis.DialHook {
 func (h hook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		ctx = h.before(ctx, cmd.Name())
+		if cmd != nil && newrelic.IsSecurityAgentPresent() {
+			parameter := parameters{cmd.FullName(), cmd.Args()}
+			newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
+		}
 		err := next(ctx, cmd)
 		h.after(ctx)
 		return err
