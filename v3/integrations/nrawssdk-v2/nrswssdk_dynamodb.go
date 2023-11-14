@@ -52,7 +52,6 @@ func handleRequest(in interface{}) (parameter []parameters) {
 		query.ConditionExpression = input.ConditionExpression
 		query.ConditionalOperator = input.ConditionalOperator
 		query.Expected = input.Expected
-		query.ConditionalOperator = input.ConditionalOperator
 		query.ExpressionAttributeNames = input.ExpressionAttributeNames
 		query.ExpressionAttributeValues = input.ExpressionAttributeValues
 		parameter = append(parameter, parameters{query, OP_WRITE})
@@ -65,6 +64,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 		query.Key = input.Key
 		query.TableName = input.TableName
 		query.AttributesToGet = input.AttributesToGet
+		query.ProjectionExpression = input.ProjectionExpression
 		query.ExpressionAttributeNames = input.ExpressionAttributeNames
 		parameter = append(parameter, parameters{query, OP_READ})
 		return
@@ -101,6 +101,7 @@ func handleRequest(in interface{}) (parameter []parameters) {
 			query.Key = v.Keys
 			query.TableName = k
 			query.AttributesToGet = v.AttributesToGet
+			query.ProjectionExpression = v.ProjectionExpression
 			query.ExpressionAttributeNames = v.ExpressionAttributeNames
 			parameter = append(parameter, parameters{query, OP_READ})
 		}
