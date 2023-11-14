@@ -78,12 +78,16 @@ func (h hook) after(ctx context.Context) {
 }
 
 func (h hook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-
+	var err error
 	if cmd != nil && newrelic.IsSecurityAgentPresent() {
 		parameter := parameters{cmd.Name(), cmd.Args()}
-		newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
+		secureAgentevent := newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
+		defer func() {
+			newrelic.GetSecurityAgentInterface().SendExitEvent(secureAgentevent, err)
+		}()
 	}
-	return h.before(ctx, cmd.Name())
+	ctx1, err := h.before(ctx, cmd.Name())
+	return ctx1, err
 }
 
 func (h hook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
@@ -91,21 +95,27 @@ func (h hook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
 	return nil
 }
 
-func pipelineOperation(cmds []redis.Cmder) string {
+func pipelineOperation(cmds []redis.Cmder) (string, any) {
 	operations := make([]string, 0, len(cmds))
 	parameter := make([]parameters, 0, len(cmds))
+	var secureAgentevent any
 	for _, cmd := range cmds {
 		operations = append(operations, cmd.Name())
 		parameter = append(parameter, parameters{cmd.Name(), cmd.Args()})
 	}
 	if newrelic.IsSecurityAgentPresent() {
-		newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
+		secureAgentevent = newrelic.GetSecurityAgentInterface().SendEvent("REDIS", parameter)
 	}
-	return "pipeline:" + strings.Join(operations, ",")
+	return "pipeline:" + strings.Join(operations, ","), secureAgentevent
 }
 
 func (h hook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
-	return h.before(ctx, pipelineOperation(cmds))
+	operation, secureAgentevent := pipelineOperation(cmds)
+	ctx1, err := h.before(ctx, operation)
+	if newrelic.IsSecurityAgentPresent() {
+		newrelic.GetSecurityAgentInterface().SendExitEvent(secureAgentevent, err)
+	}
+	return ctx1, err
 }
 
 func (h hook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
