@@ -65,6 +65,7 @@ func InitSecurityAgent(app *newrelic.Application, opts ...ConfigOption) error {
 	if !isValid {
 		return fmt.Errorf("Newrelic application value cannot be read; did you call newrelic.NewApplication?")
 	}
+	app.UpdateSecurityConfig(c.Security)
 	if !appConfig.HighSecurity && isSecurityAgentEnabled() {
 		secureAgent := securityAgent.InitSecurityAgent(c.Security, appConfig.AppName, appConfig.License, appConfig.Logger.DebugEnabled())
 		app.RegisterSecurityAgent(secureAgent)
@@ -162,9 +163,9 @@ func ConfigSecurityValidatorServiceEndPointUrl(url string) ConfigOption {
 }
 
 // ConfigSecurityDetectionDisableRxss is used to enable or disable RXSS validation.
-func ConfigSecurityDetectionDisableRxss(isEnabled bool) ConfigOption {
+func ConfigSecurityDetectionDisableRxss(isDisable bool) ConfigOption {
 	return func(cfg *SecurityConfig) {
-		cfg.Security.Detection.Rxss.Enabled = isEnabled
+		cfg.Security.Detection.Rxss.Enabled = !isDisable
 	}
 }
 
