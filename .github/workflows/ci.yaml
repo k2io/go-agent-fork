@@ -30,6 +30,7 @@ jobs:
           - dirs: v3/integrations/logcontext-v2/nrlogrus
           - dirs: v3/integrations/logcontext-v2/nrzerolog
           - dirs: v3/integrations/logcontext-v2/nrzap
+          - dirs: v3/integrations/logcontext-v2/nrslog
           - dirs: v3/integrations/logcontext-v2/nrwriter
           - dirs: v3/integrations/logcontext-v2/zerologWriter
           - dirs: v3/integrations/logcontext-v2/logWriter
@@ -66,6 +67,7 @@ jobs:
           - dirs: v3/integrations/nrmongo
           - dirs: v3/integrations/nrgraphqlgo,v3/integrations/nrgraphqlgo/example
           - dirs: v3/integrations/nrmssql
+          - dirs: v3/integrations/nropenai
     steps:
     - name: Checkout Code
       uses: actions/checkout@v2
