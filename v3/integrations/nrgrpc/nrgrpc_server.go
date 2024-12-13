@@ -203,6 +203,9 @@ func ErrorInterceptorStatusHandler(ctx context.Context, txn *newrelic.Transactio
 	txn.AddAttribute("grpcStatusLevel", "error")
 	txn.AddAttribute("grpcStatusMessage", s.Message())
 	txn.AddAttribute("grpcStatusCode", s.Code().String())
+	if newrelic.IsSecurityAgentPresent() {
+		newrelic.GetSecurityAgentInterface().SendEvent("GRPC_ERROR_RESPONSE", s.Code().String(), int(s.Code()))
+	}
 }
 
 // WarningInterceptorStatusHandler is our standard handler for
