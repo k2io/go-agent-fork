@@ -93,6 +93,10 @@ func (t *tracer) TraceQuery(ctx context.Context, queryString string, operationNa
 	id := t.newRequestID()
 	ctx = context.WithValue(ctx, requestIDContextKey, id)
 
+	if newrelic.IsSecurityAgentPresent() {
+		newrelic.GetSecurityAgentInterface().SendEvent("GRAPHQL", queryString != "", len(variables) != 0)
+	}
+
 	return ctx, func(errs []*errors.QueryError) {
 		t.removeFields(id)
 		for _, err := range errs {
