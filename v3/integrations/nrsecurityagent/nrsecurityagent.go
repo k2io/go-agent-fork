@@ -16,6 +16,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	DefaultValidatorServiceURL = "wss://csec.nr-data.net"
+)
+
 func init() { internal.TrackUsage("integration", "securityagent") }
 
 type SecurityConfig struct {
@@ -27,7 +31,7 @@ type SecurityConfig struct {
 func defaultSecurityConfig() SecurityConfig {
 	cfg := SecurityConfig{}
 	cfg.Security.Enabled = false
-	cfg.Security.Validator_service_url = "wss://csec.nr-data.net"
+	cfg.Security.Validator_service_url = DefaultValidatorServiceURL
 	cfg.Security.Mode = "IAST"
 	cfg.Security.Agent.Enabled = true
 	cfg.Security.Detection.Rxss.Enabled = true
@@ -38,6 +42,23 @@ func defaultSecurityConfig() SecurityConfig {
 	cfg.Security.ExcludeFromIastScan.API = make([]string, 0)
 	cfg.Security.ScanControllers.IastScanRequestRateLimit = 3600
 	return cfg
+}
+
+// Auto esolve csec validator/SE connection url based on collector host
+func resolveValidatorHost(host string) string {
+
+	hostMapping := map[string]string{
+		"collector.newrelic.com":         DefaultValidatorServiceURL,
+		"collector.eu.newrelic.com":      "wss://csec.eu01.nr-data.net",
+		"gov-collector.newrelic.com":     "wss://csec-gov.nr-data.net",
+		"staging-collector.newrelic.com": "wss://csec-staging.nr-data.net",
+	}
+
+	if resolvedHost, exists := hostMapping[host]; exists {
+		return resolvedHost
+	}
+	return DefaultValidatorServiceURL
+
 }
 
 // To completely disable security set NEW_RELIC_SECURITY_AGENT_ENABLED env to false.
@@ -73,6 +94,7 @@ func InitSecurityAgent(app *newrelic.Application, opts ...ConfigOption) error {
 	}
 	app.UpdateSecurityConfig(c.Security)
 	if !appConfig.HighSecurity && isSecurityAgentEnabled() {
+		c.Security.Validator_service_url = resolveValidatorHost(appConfig.Host)
 		secureAgent := securityAgent.InitSecurityAgent(c.Security, appConfig.AppName, appConfig.License, appConfig.Logger.DebugEnabled())
 		app.RegisterSecurityAgent(secureAgent)
 	}
